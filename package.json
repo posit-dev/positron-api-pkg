@@ -1,6 +1,6 @@
 {
   "name": "@posit-dev/positron",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "TypeScript definitions and runtime utilities for the Positron API",
   "keywords": [
     "positron",
@@ -27,14 +27,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/posit-dev/positron.git",
+    "url": "https://github.com/posit-dev/positron-api-pkg",
     "directory": "positron-api-pkg"
   },
   "bugs": {
-    "url": "https://github.com/posit-dev/positron/issues"
+    "url": "https://github.com/posit-dev/positron-api-pkg/issues"
   },
-  "homepage": "https://github.com/posit-dev/positron#readme",
-  "license": "Elastic-2.0",
+  "homepage": "https://positron.posit.co/",
+  "license": "MIT",
   "author": {
     "name": "Posit Software, PBC",
     "url": "https://posit.co"
