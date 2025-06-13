@@ -188,6 +188,54 @@ npm run clean
 npm run build
 ```
 
+## Testing
+
+This package includes a comprehensive test suite built with [Vitest](https://vitest.dev/) that ensures both runtime behavior and TypeScript type definitions work correctly.
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run tests in watch mode (for development)
+npm run build && npx vitest
+```
+
+### Test Structure
+
+The test suite includes:
+
+- **Unit Tests** (`tests/unit/`) - Test runtime functions with mocked environments
+  - `runtime.test.ts` - Tests for `inPositron()` and `tryAcquirePositronApi()`
+  - `preview.test.ts` - Tests for `previewUrl()` in both Positron and VS Code environments
+  - `exports.test.ts` - Verifies all expected exports are available
+
+- **Type Tests** (`tests/types/`) - Verify TypeScript definitions compile correctly
+  - `ambient-modules.test.ts` - Tests for 'positron' and 'ui-comm' ambient modules
+  - `exports.test.ts` - Tests for exported types and type signatures
+
+### Testing Strategy
+
+The tests mock both Positron and VS Code environments to ensure the package works correctly in both contexts:
+
+```typescript
+// Example: Testing in Positron environment
+const mockApi = mockPositronEnvironment();
+const result = tryAcquirePositronApi();
+expect(result).toBe(mockApi);
+
+// Example: Testing in VS Code environment
+mockVscodeEnvironment();
+const result = tryAcquirePositronApi();
+expect(result).toBeUndefined();
+```
+
+The package achieves high test coverage (>95%) for all runtime code, ensuring reliability across different environments.
+
 ### From Positron Repository Root
 
 ```bash

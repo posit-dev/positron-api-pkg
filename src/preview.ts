@@ -34,6 +34,7 @@ import { tryAcquirePositronApi } from './runtime';
  */
 export async function previewUrl(url: string): Promise<void> {
 	const positronApi = tryAcquirePositronApi();
+
 	const vscode = await import('vscode');
 	const uri = vscode.Uri.parse(url);
 

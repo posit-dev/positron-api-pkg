@@ -11,7 +11,13 @@
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["vscode"]
+    "types": ["vscode"],
+    "baseUrl": "./",
+    "paths": {
+      "positron": ["src/positron.d.ts"],
+      "ui-comm": ["src/ui-comm.d.ts"]
+    },
+    "composite": true
   },
   "include": [
     "src/**/*"

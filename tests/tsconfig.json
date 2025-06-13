@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "moduleResolution": "node",
+    "types": ["vitest/globals", "@types/node", "@types/vscode"],
+    "paths": {
+      "positron": ["../src/positron.d.ts"]
+    }
+  },
+  "include": ["**/*.ts"]
+}
