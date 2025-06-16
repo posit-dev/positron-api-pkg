@@ -151,9 +151,17 @@ This package includes TypeScript definitions for:
 
 ## Version Compatibility
 
-| @posit-dev/positron | Positron Version | VS Code API |
-|----------------|------------------|-------------|
-| 0.1.x          | 2025.07.0+      | 1.74.0+     |
+This table shows which version of Positron each package version was built against. The package may still be compatible with earlier Positron versions unless breaking changes are noted.
+
+| @posit-dev/positron | Positron Version | VS Code API | Notes |
+|---------------------|------------------|-------------|-------|
+| 0.1.7               | 2025.07.0+        | 1.74.0+     |       |
+
+**Legend:**
+- **@posit-dev/positron**: The package version
+- **Positron Version**: The version of Positron this package was built against  
+- **VS Code API**: Minimum VS Code API version required
+- **Notes**: Any breaking changes or compatibility notes
 
 ## Development
 

@@ -1,6 +1,6 @@
 {
   "name": "@posit-dev/positron",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "TypeScript definitions and runtime utilities for the Positron API",
   "keywords": [
     "positron",
