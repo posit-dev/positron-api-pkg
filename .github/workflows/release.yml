@@ -1,0 +1,163 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      positron_ref:
+        description: 'Positron branch/tag to build against'
+        required: true
+        default: 'main'
+        type: string
+      dry_run:
+        description: 'Dry run - builds but skips publish'
+        required: false
+        default: false
+        type: boolean
+      force:
+        description: 'Force release even if Positron version unchanged'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+
+      - name: Shallow clone Positron repo
+        run: |
+          git clone --depth 1 --branch ${{ inputs.positron_ref }} \
+            https://github.com/posit-dev/positron.git ../positron
+
+      - name: Check if Positron version already released
+        id: check_version
+        run: |
+          POSITRON_VERSION=$(jq -r '.version' ../positron/product.json)
+          echo "positron_version=$POSITRON_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Positron version: $POSITRON_VERSION"
+
+          # Check if this Positron version is already in the README compatibility table
+          if grep -q "| $POSITRON_VERSION" README.md; then
+            echo "already_released=true" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Positron $POSITRON_VERSION already has a release"
+          else
+            echo "already_released=false" >> "$GITHUB_OUTPUT"
+            echo "✓ New Positron version detected"
+          fi
+
+      - name: Skip release (no changes)
+        if: ${{ steps.check_version.outputs.already_released == 'true' && !inputs.force }}
+        run: |
+          echo "## Release Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Positron version **${{ steps.check_version.outputs.positron_version }}** already has a published release." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To release anyway (e.g., for package-only fixes), re-run with **force** checked." >> $GITHUB_STEP_SUMMARY
+          exit 0
+
+      - name: Set up Node.js
+        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        run: npm ci
+
+      - name: Build
+        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        run: npm run build
+
+      - name: Run tests
+        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        run: npm run test:coverage
+
+      - name: Bump version
+        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        id: bump_version
+        run: |
+          npm version ${{ inputs.version_type }} --no-git-tag-version
+          NEW_VERSION=$(jq -r '.version' package.json)
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "New package version: $NEW_VERSION"
+
+      - name: Update README compatibility table
+        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        run: |
+          POSITRON_VERSION="${{ steps.check_version.outputs.positron_version }}"
+          PACKAGE_VERSION="${{ steps.bump_version.outputs.version }}"
+
+          # Add new row to compatibility table if not already present
+          if ! grep -q "| $PACKAGE_VERSION |" README.md; then
+            # Insert new row after the header separator line
+            sed -i "/^|.*-.*|.*-.*|$/a | $PACKAGE_VERSION | $POSITRON_VERSION+ |" README.md
+          fi
+
+      - name: Configure git
+        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit changes
+        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        run: |
+          git add package.json package-lock.json README.md
+          git commit -m "Release v${{ steps.bump_version.outputs.version }}"
+          git tag "v${{ steps.bump_version.outputs.version }}"
+
+      - name: Push changes
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || inputs.force) && !inputs.dry_run }}
+        run: |
+          git push origin HEAD
+          git push origin "v${{ steps.bump_version.outputs.version }}"
+
+      - name: Publish to npm
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || inputs.force) && !inputs.dry_run }}
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || inputs.force) && !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump_version.outputs.version }}
+          name: v${{ steps.bump_version.outputs.version }}
+          body: |
+            ## @posit-dev/positron v${{ steps.bump_version.outputs.version }}
+
+            Built against Positron ${{ steps.check_version.outputs.positron_version }}
+
+            ### Installation
+            ```bash
+            npm install @posit-dev/positron@${{ steps.bump_version.outputs.version }}
+            ```
+          generate_release_notes: true
+
+      - name: Dry run summary
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || inputs.force) && inputs.dry_run }}
+        run: |
+          echo "## Dry Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Build and tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Would publish version: ${{ steps.bump_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 Built against Positron: ${{ steps.check_version.outputs.positron_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No changes were pushed (dry run mode)" >> $GITHUB_STEP_SUMMARY
