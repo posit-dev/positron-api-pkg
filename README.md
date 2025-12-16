@@ -155,6 +155,7 @@ This table shows which version of Positron each package version was built agains
 
 | @posit-dev/positron | Positron Version | VS Code API | Notes |
 |---------------------|------------------|-------------|-------|
+| 0.2.1 | null+ |
 | 0.2.0               | 2026.01.0+        | 1.74.0+     |       |
 
 **Legend:**
