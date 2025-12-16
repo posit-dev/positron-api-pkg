@@ -51,6 +51,14 @@ if (!fs.existsSync(uiCommFile)) {
 	process.exit(1);
 }
 
+// Verify tsconfig base file exists (we extend from Positron's base config)
+const tsconfigBase = path.join(__dirname, '../positron/src/tsconfig.base.json');
+if (!fs.existsSync(tsconfigBase)) {
+	console.error(`   ❌ TypeScript base config not found: ${tsconfigBase}`);
+	console.error('   Make sure the Positron repository is cloned at ../positron');
+	process.exit(1);
+}
+
 // Fail fast if TypeScript isn't available rather than during compilation
 try {
 	execSync('tsc --version', { stdio: 'pipe' });
@@ -109,6 +117,19 @@ console.log('\n🔧 Step 2: Compiling TypeScript source code...');
 
 try {
 	execSync('tsc --project tsconfig.json', { stdio: 'inherit', cwd: __dirname });
+
+	// Verify compilation actually produced output files
+	const indexJs = path.join(PATHS.DIST_DIR, 'index.js');
+	const indexDts = path.join(PATHS.DIST_DIR, 'index.d.ts');
+
+	if (!fs.existsSync(indexJs) || !fs.existsSync(indexDts)) {
+		console.error('   ❌ TypeScript compilation produced no output files');
+		console.error(`   Expected: ${indexJs}`);
+		console.error(`   Expected: ${indexDts}`);
+		console.error('   This usually means tsconfig.json extends a missing base config');
+		process.exit(1);
+	}
+
 	console.log('   ✅ TypeScript compilation completed');
 } catch (error) {
 	console.error('   ❌ TypeScript compilation failed');

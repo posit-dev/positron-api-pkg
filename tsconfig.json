@@ -16,8 +16,7 @@
     "paths": {
       "positron": ["src/positron.d.ts"],
       "ui-comm": ["src/ui-comm.d.ts"]
-    },
-    "composite": true
+    }
   },
   "include": [
     "src/**/*"
