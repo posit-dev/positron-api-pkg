@@ -46,7 +46,7 @@ jobs:
       - name: Check if Positron version already released
         id: check_version
         run: |
-          POSITRON_VERSION=$(jq -r '.version' ../positron/product.json)
+          POSITRON_VERSION=$(jq -r '.positronVersion' ../positron/product.json)
           echo "positron_version=$POSITRON_VERSION" >> "$GITHUB_OUTPUT"
           echo "Positron version: $POSITRON_VERSION"
 
