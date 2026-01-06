@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  repository_dispatch:
+    types: [positron-release]
   workflow_dispatch:
     inputs:
       version_type:
@@ -34,13 +36,20 @@ jobs:
     permissions:
       contents: write
 
+    env:
+      # Resolve inputs - repository_dispatch uses payload, workflow_dispatch uses inputs
+      POSITRON_REF: ${{ github.event.client_payload.ref || inputs.positron_ref || 'main' }}
+      VERSION_TYPE: ${{ inputs.version_type || 'patch' }}
+      DRY_RUN: ${{ inputs.dry_run || false }}
+      FORCE: ${{ inputs.force || false }}
+
     steps:
       - name: Checkout this repository
         uses: actions/checkout@v4
 
       - name: Shallow clone Positron repo
         run: |
-          git clone --depth 1 --branch ${{ inputs.positron_ref }} \
+          git clone --depth 1 --branch ${{ env.POSITRON_REF }} \
             https://github.com/posit-dev/positron.git ../positron
 
       - name: Check if Positron version already released
@@ -60,7 +69,7 @@ jobs:
           fi
 
       - name: Skip release (no changes)
-        if: ${{ steps.check_version.outputs.already_released == 'true' && !inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'true' && env.FORCE == 'false' }}
         run: |
           echo "## Release Skipped" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -70,35 +79,35 @@ jobs:
           exit 0
 
       - name: Set up Node.js
-        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         run: npm ci
 
       - name: Build
-        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         run: npm run build
 
       - name: Run tests
-        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         run: npm run test:coverage
 
       - name: Bump version
-        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         id: bump_version
         run: |
-          npm version ${{ inputs.version_type }} --no-git-tag-version
+          npm version ${{ env.VERSION_TYPE }} --no-git-tag-version
           NEW_VERSION=$(jq -r '.version' package.json)
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "New package version: $NEW_VERSION"
 
       - name: Update README compatibility table
-        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         run: |
           POSITRON_VERSION="${{ steps.check_version.outputs.positron_version }}"
           PACKAGE_VERSION="${{ steps.bump_version.outputs.version }}"
@@ -110,32 +119,32 @@ jobs:
           fi
 
       - name: Configure git
-        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Commit changes
-        if: ${{ steps.check_version.outputs.already_released == 'false' || inputs.force }}
+        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         run: |
           git add package.json package-lock.json README.md
           git commit -m "Release v${{ steps.bump_version.outputs.version }}"
           git tag "v${{ steps.bump_version.outputs.version }}"
 
       - name: Push changes
-        if: ${{ (steps.check_version.outputs.already_released == 'false' || inputs.force) && !inputs.dry_run }}
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
         run: |
           git push origin HEAD
           git push origin "v${{ steps.bump_version.outputs.version }}"
 
       - name: Publish to npm
-        if: ${{ (steps.check_version.outputs.already_released == 'false' || inputs.force) && !inputs.dry_run }}
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
-        if: ${{ (steps.check_version.outputs.already_released == 'false' || inputs.force) && !inputs.dry_run }}
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.bump_version.outputs.version }}
@@ -152,7 +161,7 @@ jobs:
           generate_release_notes: true
 
       - name: Dry run summary
-        if: ${{ (steps.check_version.outputs.already_released == 'false' || inputs.force) && inputs.dry_run }}
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'true' }}
         run: |
           echo "## Dry Run Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
