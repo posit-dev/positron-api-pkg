@@ -30,6 +30,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
