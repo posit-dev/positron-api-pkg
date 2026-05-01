@@ -10,12 +10,13 @@ describe('Consumer type-checking (issue #4)', () => {
   let tarballPath: string;
 
   beforeAll(() => {
-    const out = execSync('npm pack --pack-destination /tmp 2>&1', {
+    const packDir = fs.mkdtempSync(path.join(os.tmpdir(), 'positron-pack-'));
+    const out = execSync(`npm pack --pack-destination ${packDir} 2>&1`, {
       cwd: pkgRoot,
       encoding: 'utf8',
     });
     const filename = out.trim().split('\n').pop()!;
-    tarballPath = path.join('/tmp', filename);
+    tarballPath = path.join(packDir, filename);
   });
 
   function createConsumerProject(
@@ -41,6 +42,7 @@ describe('Consumer type-checking (issue #4)', () => {
     // Use fs.cpSync instead of symlinks for Windows compatibility.
     const vscodeTarget = path.join(dir, 'node_modules', '@types', 'vscode');
     if (!fs.existsSync(vscodeTarget)) {
+      fs.mkdirSync(path.dirname(vscodeTarget), { recursive: true });
       fs.cpSync(vscodeTypesDir, vscodeTarget, { recursive: true });
     }
 
