@@ -1,13 +1,10 @@
 /*---------------------------------------------------------------------------------------------
- *  Copyright (C) 2023-2026 Posit Software, PBC. All rights reserved.
+ *  Copyright (C) 2023-2025 Posit Software, PBC. All rights reserved.
  *  Licensed under the Elastic License 2.0. See LICENSE.txt for license information.
  *--------------------------------------------------------------------------------------------*/
 
-/// <reference path="./vscode-dts/vscode.positron-compat.d.ts" />
-/// <reference path="./vscode-dts/vscode.proposed.chatParticipantAdditions.d.ts" />
-/// <reference path="./vscode-dts/vscode.proposed.chatParticipantPrivate.d.ts" />
-/// <reference path="./vscode-dts/vscode.proposed.chatProvider.d.ts" />
-/// <reference path="./vscode-dts/vscode.proposed.languageModelThinkingPart.d.ts" />
+/// <reference path="../vscode-dts/vscode.proposed.chatProvider.d.ts" />
+/// <reference path="../vscode-dts/vscode.proposed.languageModelThinkingPart.d.ts" />
 
 declare module 'positron' {
 
@@ -232,37 +229,6 @@ declare module 'positron' {
 	}
 
 	/**
-	 * A position in a document using UTF-8 byte offsets.
-	 * This is used to losslessly communicate file or line offsets to backends.
-	 */
-	export interface Utf8Position {
-		/** 0-based line number */
-		readonly line: number;
-		/** 0-based column offset in UTF-8 bytes */
-		readonly character: number;
-	}
-
-	/**
-	 * A range in a document using UTF-8 byte offsets for character positions.
-	 */
-	export interface Utf8Range {
-		readonly start: Utf8Position;
-		readonly end: Utf8Position;
-	}
-
-	/**
-	 * A location in a document using UTF-8 byte offsets for character positions.
-	 *
-	 * This is a variant of vscode.Location where character offsets are in UTF-8 bytes
-	 * rather than UTF-16 code units. Use this when communicating with kernels that
-	 * need byte-based source positions.
-	 */
-	export interface Utf8Location {
-		readonly uri: vscode.Uri;
-		readonly range: Utf8Range;
-	}
-
-	/**
 	 * LanguageRuntimeExit is an interface that defines an event occurring when a
 	 * language runtime exits.
 	 */
@@ -311,42 +277,6 @@ declare module 'positron' {
 
 		/** Additional binary data, if any */
 		buffers?: Array<Uint8Array>;
-	}
-
-	/**
-	 * RuntimeResourceUsage represents resource usage information for a language runtime.
-	 */
-	export interface RuntimeResourceUsage {
-		/**
-		 * CPU usage percentage for the kernel and its children.
-		 */
-		cpu_percent: number;
-
-		/**
-		 * Memory usage in bytes for the kernel and its children.
-		 */
-		memory_bytes: number;
-
-		/**
-		 * Number of threads used by the kernel and its children.
-		 */
-		thread_count: number;
-
-		/**
-		 * Sampling period in milliseconds for the resource usage data.
-		 */
-		sampling_period_ms: number;
-
-		/**
-		 * Timestamp of the resource usage data in milliseconds since epoch.
-		 */
-		timestamp: number;
-
-		/**
-		 * The OS process ID of the kernel, if known. Used to avoid
-		 * double-counting kernel memory in the Positron process tree.
-		 */
-		process_id?: number;
 	}
 
 	/**
@@ -452,19 +382,6 @@ declare module 'positron' {
 		password: boolean;
 	}
 
-	/**
-	 * The CPU architecture of an interpreter.
-	 * Used to detect architecture mismatches between the interpreter and the system.
-	 */
-	export enum LanguageRuntimeArchitecture {
-		/** 64-bit ARM architecture (Apple Silicon, ARM64 Windows, etc.) */
-		Arm64 = 'arm64',
-		/** 64-bit x86 architecture (Intel/AMD) */
-		X64 = 'x64',
-		/** Architecture was detected but is not arm64 or x64 */
-		Other = 'other'
-	}
-
 	/** LanguageRuntimeInfo contains metadata about the runtime after it has started. */
 	export interface LanguageRuntimeInfo {
 		/** A startup banner */
@@ -484,32 +401,6 @@ declare module 'positron' {
 
 		/** Continuation prompt string in case user customized it */
 		continuation_prompt?: string;
-
-		/**
-		 * The interpreter's CPU architecture.
-		 * Used to detect architecture mismatches with the system.
-		 */
-		interpreterArch?: LanguageRuntimeArchitecture;
-	}
-
-	/**
-	 * Describes the kernel launch parameters used to start a runtime session.
-	 */
-	export interface LanguageRuntimeLaunchInfo {
-		/** The command line used to start the kernel */
-		argv: string[];
-
-		/** Environment variables set for the kernel process */
-		env: Record<string, string>;
-
-		/** Optional preflight command run before starting the kernel */
-		startupCommand?: string;
-
-		/** How the kernel handles interrupts */
-		interruptMode?: string;
-
-		/** The Jupyter protocol version in use */
-		protocolVersion?: string;
 	}
 
 	/** LanguageRuntimeState is a LanguageRuntimeMessage representing a new runtime state */
@@ -1143,101 +1034,6 @@ declare module 'positron' {
 		LSP = 'lsp',
 	}
 
-	export interface LanguageRuntimePackage {
-		id: string;
-		name: string;
-		displayName: string;
-		version: string;
-
-		/** License information */
-		license?: string;
-
-		/** Latest available version from repository */
-		latestVersion?: string;
-
-		/** Publication/release date */
-		publishedDate?: string;
-	}
-
-	/**
-	 * Represents a package to install or update, with an optional version.
-	 */
-	export interface PackageSpec {
-		/** The package name */
-		name: string;
-		/** Optional version to install (if not specified, installs latest) */
-		version?: string;
-	}
-
-	/**
-	 * Interface for package management functionality.
-	 *
-	 * Provides package management operations for a language runtime session.
-	 * Runtimes that support package management should implement this interface
-	 * and return it from getPackageManager().
-	 */
-	export interface LanguageRuntimePackageManager {
-		/**
-		 * Get list of installed packages.
-		 * @param token Optional cancellation token
-		 */
-		getPackages(token?: vscode.CancellationToken): Thenable<LanguageRuntimePackage[]>;
-
-		/**
-		 * Install the list of packages.
-		 * @param packages Array of package install requests with name and optional version
-		 * @param token Optional cancellation token
-		 */
-		installPackages(packages: PackageSpec[], token?: vscode.CancellationToken): Thenable<void>;
-
-		/**
-		 * Uninstall the list of packages.
-		 * @param packageNames Array of package names to uninstall
-		 * @param token Optional cancellation token
-		 */
-		uninstallPackages(packageNames: string[], token?: vscode.CancellationToken): Thenable<void>;
-
-		/**
-		 * Update the list of packages.
-		 * @param packages Array of package install requests with name and optional version
-		 * @param token Optional cancellation token
-		 */
-		updatePackages(packages: PackageSpec[], token?: vscode.CancellationToken): Thenable<void>;
-
-		/**
-		 * Update all installed packages.
-		 * @param token Optional cancellation token
-		 */
-		updateAllPackages(token?: vscode.CancellationToken): Thenable<void>;
-
-		/**
-		 * Search a repository for packages matching the query.
-		 * @param query Search query string
-		 * @param token Optional cancellation token
-		 */
-		searchPackages(query: string, token?: vscode.CancellationToken): Thenable<LanguageRuntimePackage[]>;
-
-		/**
-		 * Search a repository for available versions of a package.
-		 * @param name Package name
-		 * @param token Optional cancellation token
-		 */
-		searchPackageVersions(name: string, token?: vscode.CancellationToken): Thenable<string[]>;
-
-		/**
-		 * Fetch additional metadata for packages from external sources (e.g., P3M).
-		 * This is called separately from getPackages() to allow the UI to display
-		 * the basic package list quickly while metadata loads in the background.
-		 * @param packageNames Array of package names to fetch metadata for
-		 * @param token Optional cancellation token
-		 * @returns Map of package name (lowercase) to partial package metadata
-		 */
-		getPackageMetadata?(
-			packageNames: string[],
-			token?: vscode.CancellationToken,
-		): Thenable<Map<string, Partial<LanguageRuntimePackage>>>;
-	}
-
 	/**
 	 * Basic metadata about an active language runtime session, including
 	 * immutable metadata about the session itself and metadata about the
@@ -1283,18 +1079,12 @@ declare module 'positron' {
 		 * @param id The ID of the code
 		 * @param mode The code execution mode
 		 * @param errorBehavior The code execution error behavior
-		 * @param codeLocation Optionally, the location of `code` in the source editor.
-		 * @param executionMetadata Optionally, a record of additional metadata to associate with this execution.
 		 * Note: The errorBehavior parameter is currently ignored by kernels
 		 */
-		execute(
-			code: string,
+		execute(code: string,
 			id: string,
 			mode: RuntimeCodeExecutionMode,
-			errorBehavior: RuntimeErrorBehavior,
-			codeLocation?: Utf8Location,
-			executionMetadata?: Record<string, any>,
-		): void;
+			errorBehavior: RuntimeErrorBehavior): void;
 
 		/**
 		 * Shut down the runtime; returns a Thenable that resolves when the
@@ -1322,9 +1112,6 @@ declare module 'positron' {
 
 		/** An object that emits an event when the user's session ends and the runtime exits */
 		onDidEndSession: vscode.Event<LanguageRuntimeExit>;
-
-		/** An object that emits an event when the runtime's resource usage is updated */
-		onDidUpdateResourceUsage: vscode.Event<RuntimeResourceUsage>;
 
 		/**
 		 * Opens a resource in the runtime.
@@ -1425,13 +1212,6 @@ declare module 'positron' {
 		updateSessionName(sessionName: string): void;
 
 		/**
-		 * Returns the kernel launch parameters used to start this session,
-		 * if available.
-		 */
-		getLaunchInfo?(): LanguageRuntimeLaunchInfo | undefined;
-
-
-		/**
 		 * Show runtime log in output panel.
 		 *
 		 * @param channel The channel to show the output in
@@ -1449,13 +1229,6 @@ declare module 'positron' {
 		 * Show profiler log if supported.
 		 */
 		showProfile?(): Thenable<void>;
-
-		/**
-		 * Get the package manager for this session, if available.
-		 *
-		 * Returns undefined if the runtime does not support package management.
-		 */
-		getPackageManager?(): LanguageRuntimePackageManager;
 	}
 
 
@@ -1647,9 +1420,6 @@ declare module 'positron' {
 		 * cursor is within. If the cursor is not within a statement, return the
 		 * range of the next statement, if one exists.
 		 *
-		 * Throw a {@link StatementRangeSyntaxError} to indicate that a statement range
-		 * cannot be provided due to a syntax error in the document.
-		 *
 		 * @param document The document in which the command was invoked.
 		 * @param position The position at which the command was invoked.
 		 * @param token A cancellation token.
@@ -1673,24 +1443,7 @@ declare module 'positron' {
 		 * The code for this statement range, if different from the document contents at this range.
 		 */
 		readonly code?: string;
-	}
 
-	/**
-	 * An error thrown by a {@link StatementRangeProvider} to indicate that a statement range
-	 * cannot be provided due to a syntax error in the document.
-	 */
-	export class StatementRangeSyntaxError extends Error {
-		/**
-		 * Zero indexed line number where the syntax error occurred.
-		 */
-		readonly line?: number;
-
-		/**
-		 * Creates a new statement range syntax error.
-		 *
-		 * @param line Zero indexed line number where the syntax error occurred.
-		 */
-		constructor(line?: number);
 	}
 
 	export interface HelpTopicProvider {
@@ -1755,15 +1508,8 @@ declare module 'positron' {
 		languageId: string;
 		/**
 		 * A human-readable name for the driver.
-		 * The name is also used to group drivers for the same database provider. For instance,
-		 * if there are multiple different ways to connect to the same database.
 		 */
 		name: string;
-		/**
-		 * A human-readable description for the driver.
-		 * Used specially when disambiguating drivers with the same name.
-		 */
-		description?: string;
 		/**
 		 * The base64-encoded SVG icon for the driver.
 		 */
@@ -1789,27 +1535,8 @@ declare module 'positron' {
 
 		/**
 		 * Generates the connection code based on the inputs.
-		 *
-		 * @param inputs The current values of the connection inputs defined in metadata.
-		 * @returns Either a string containing valid connection code, or an object with:
-		 *   - `code`: The generated connection code. Should still be generated even when
-		 *     validation fails, so users can see and copy the partial code.
-		 *   - `errorMessage`: A user-facing message explaining the validation error,
-		 *     displayed in an error banner overlay on the code editor. The Connect
-		 *     button is disabled when an error message is present.
-		 *
-		 * @example
-		 * // Return valid code as a string
-		 * generateCode: (inputs) => `library(DBI)\ncon <- dbConnect(...)`
-		 *
-		 * @example
-		 * // Return validation error with generated code
-		 * generateCode: (inputs) => ({
-		 *   code: `library(bigrquery)\ncon <- dbConnect(...)`,
-		 *   errorMessage: 'Project ID is required'
-		 * })
 		 */
-		generateCode?: (inputs: Array<ConnectionsInput>) => string | { code: string; errorMessage: string };
+		generateCode?: (inputs: Array<ConnectionsInput>) => string;
 
 		/**
 		 * Connect session.
@@ -1851,21 +1578,6 @@ declare module 'positron' {
 		Svg = 'svg',
 		Pdf = 'pdf',
 		Tiff = 'tiff'
-	}
-
-	/***
-	 * Represents the result of evaluating a code fragment in the runtime.
-	 */
-	export interface EvalResult {
-		/**
-		 * The value resulting from the code evaluation.
-		 */
-		result: any;
-
-		/**
-		 * The output emitted during code evaluation, if any.
-		 */
-		output: string;
 	}
 
 	namespace languages {
@@ -2016,32 +1728,6 @@ declare module 'positron' {
 		 * plot widget.
 		 */
 		export function getPlotsRenderSettings(): Thenable<PlotRenderSettings>;
-
-	}
-
-	namespace context {
-		/**
-		 * Per-workspace ephemeral extension storage. Data survives extension
-		 * host restarts and window reloads, but does not persist beyond the
-		 * lifetime of the application process.
-		 *
-		 * Use this instead of {@link vscode.ExtensionContext.workspaceState workspaceState}
-		 * for state that is only meaningful while the process is running,
-		 * such as runtime session mappings. This avoids leaking stale
-		 * state on disk and ensures automatic cleanup on shutdown.
-		 */
-		export const ephemeralState: EphemeralMemento;
-
-		/**
-		 * A {@link vscode.Memento} with an additional `clear()` method that
-		 * removes all keys at once.
-		 */
-		export interface EphemeralMemento extends vscode.Memento {
-			/**
-			 * Remove all stored keys for this extension's ephemeral storage.
-			 */
-			clear(): Thenable<void>;
-		}
 	}
 
 	namespace runtime {
@@ -2148,11 +1834,6 @@ declare module 'positron' {
 		 *  not provided, an appropriate session will be chosen, and if no
 		 *  session for the desired language is running at all, a new session
 		 *  will be started.
-		 * @param documentUri An optional URI of the document in which the code to execute is located.
-		 * @param executionMetadata An optional object containing additional
-		 *  metadata to pass to the language runtime. Will be included in the
-		 *  `positron` field of the `metadata` argument passed to the runtime's
-		 *  `execute` method.
 		 * @returns A Thenable that resolves with the result of the code execution,
 		 *  as a map of MIME types to values.
 		 */
@@ -2163,43 +1844,7 @@ declare module 'positron' {
 			mode?: RuntimeCodeExecutionMode,
 			errorBehavior?: RuntimeErrorBehavior,
 			observer?: ExecutionObserver,
-			sessionId?: string,
-			documentUri?: vscode.Uri,
-			executionMetadata?: Record<string, any>): Thenable<Record<string, any>>;
-
-		/**
-		 * Evaluates code silently in a language runtime, without displaying
-		 * output in the console or notifying the user.
-		 *
-		 * @param languageId The language ID of the code snippet
-		 * @param code The code snippet to evaluate
-		 * @param cancellationToken An optional cancellation token that can be
-		 *  used to cancel the evaluation.
-		 * @param sessionId An optional session ID to evaluate the code in. If
-		 *  not provided, an appropriate session will be chosen, and if no
-		 *  session for the desired language is running at all, a new session
-		 *  will be started.
-		 * @returns A Thenable that resolves with the result of the code
-		 *  evaluation.
-		 */
-		export function evaluateCode(languageId: string,
-			code: string,
-			cancellationToken?: vscode.CancellationToken,
-			sessionId?: string): Thenable<EvalResult>;
-
-		/**
-		 * Executes a set of cells in a source document. The results are
-		 * displayed beneath the cells.
-		 *
-		 * @param documentUri The URI of the document
-		 * @param range The ranges of the cells to execute
-		 * @param executionMetadata An optional array of metadata objects to
-		 *  pass to the language runtime, one for each cell being executed.
-		 */
-		export function executeInlineCell(documentUri: vscode.Uri,
-			cellRanges: vscode.Range[],
-			executionMetadata?: Record<string, any>[]
-		): Thenable<void>;
+			sessionId?: string): Thenable<Record<string, any>>;
 
 		/**
 		 * Register a language runtime manager with Positron.
@@ -2270,24 +1915,11 @@ declare module 'positron' {
 			notebookUri?: vscode.Uri): Thenable<LanguageRuntimeSession>;
 
 		/**
-		 * Interrupt a running session.
-		 *
-		 * @param sessionId The ID of the session to interrupt.
-		 */
-		export function interruptSession(sessionId: string): Thenable<void>;
-
-		/**
 		 * Restart a running session.
 		 *
-		 * If the session is busy, the user is prompted whether to interrupt it
-		 * before restarting.
-		 *
 		 * @param sessionId The ID of the session to restart.
-		 * @returns `true` if the session was restarted (or a restart already in
-		 *   progress completed), `false` if the restart was declined by the user.
-		 *   Rejects if the session is not found or not in a restartable state.
 		 */
-		export function restartSession(sessionId: string): Thenable<boolean>;
+		export function restartSession(sessionId: string): Thenable<void>;
 
 		/**
 		 * Focus a running session.
@@ -2352,14 +1984,6 @@ declare module 'positron' {
 		export function registerClientInstance(clientInstanceId: string): vscode.Disposable;
 
 		/**
-		 * Emit a performance mark that can be used for telemetry and
-		 * performance monitoring. The mark is recorded at the current time.
-		 *
-		 * @param name The name of the performance mark.
-		 */
-		export function emitPerfMark(name: string): void;
-
-		/**
 		 * An event that fires when a new runtime is registered.
 		 */
 		export const onDidRegisterRuntime: vscode.Event<LanguageRuntimeMetadata>;
@@ -2373,52 +1997,6 @@ declare module 'positron' {
 		 * An event that fires when code is executed.
 		 */
 		export const onDidExecuteCode: vscode.Event<CodeExecutionEvent>;
-
-		/**
-		 * An item to be shown in the runtime picker quick pick.
-		 */
-		export interface RuntimePickerItem {
-			/** Unique identifier for this item */
-			id: string;
-			/** Label shown in the picker */
-			label: string;
-			/** Optional detail text shown below the label */
-			detail?: string;
-			/** Optional separator label to show before this item */
-			separatorLabel?: string;
-		}
-
-		/**
-		 * A contribution that adds items to the runtime picker.
-		 */
-		export interface RuntimePickerContribution {
-			/** The language ID this contribution applies to (e.g., 'python', 'r') */
-			languageId: string;
-
-			/**
-			 * Called when the runtime picker is about to be shown.
-			 * Return items to add to the picker, or an empty array if none should be shown.
-			 */
-			getItems(): Thenable<RuntimePickerItem[]>;
-
-			/**
-			 * Called when the user selects one of this contribution's items.
-			 * @param itemId The ID of the selected item
-			 * @returns The runtime ID to start, or undefined if no runtime should be started
-			 */
-			onDidSelectItem(itemId: string): Thenable<string | undefined>;
-		}
-
-		/**
-		 * Register a contribution that adds items to the runtime picker.
-		 * Extensions can use this to add custom actions like "Install Python via uv".
-		 *
-		 * @param contribution The contribution to register
-		 * @returns A disposable that unregisters the contribution when disposed
-		 */
-		export function registerRuntimePickerContribution(
-			contribution: RuntimePickerContribution
-		): vscode.Disposable;
 	}
 
 	// FIXME: The current (and clearly not final) state of an experiment to bring in interface(s)
@@ -2517,72 +2095,47 @@ declare module 'positron' {
 	}
 
 	/**
-	 * Utilities for formatting file paths for use in code.
+	 * Utilities for pasting files as paths.
 	 */
 	namespace paths {
 		/**
-		 * Specifies the base directory for making a relative path.
-		 * Can be an abstract reference (which will be made concrete at runtime)
-		 * or a literal URI.
-		 *
-		 * - 'workspace': The workspace folder
-		 * - 'session': Working directory of a session
-		 * - 'home': User's home directory
-		 * - vscode.Uri: A literal URI provided by the caller
+		 * Options for extracting clipboard file paths
 		 */
-		export type RelativeBase = 'workspace' | 'session' | 'home' | vscode.Uri;
-
-		/**
-		 * Options for formatting file paths for use in code.
-		 */
-		export interface FormatPathForCodeOptions {
+		export interface ExtractClipboardFilePathsOptions {
 			/**
-			 * Specifies base directories for relative path calculation, tried in order.
-			 * The path will be made relative to the first base that contains the file.
-			 * If omitted or empty, the path won't be relative-ized.
-			 *
-			 * Examples:
-			 * - ['workspace', 'home']: Try workspace-relative, fall back to home-relative
-			 * - ['session', 'home']: Try session-working-directory-relative, fall back to home-relative
-			 * - [vscode.Uri.file('/custom/base'), 'home']: Try custom base, fall back to home-relative
+			 * Whether to prefer relative paths when workspace context is available.
+			 * Defaults to true.
 			 */
-			relativeTo?: RelativeBase | RelativeBase[];
+			preferRelative?: boolean;
 
 			/**
-			 * Optional session ID when using 'session' in relativeTo.
+			 * Custom base URI for relative path calculation.
+			 * If not provided and preferRelative is true, uses the first workspace folder.
 			 */
-			sessionId?: string;
+			baseUri?: vscode.Uri;
 
 			/**
-			 * User's home directory URI. Required for 'home' and to expand ~ in 'session'.
+			 * User home directory URI for home-relative path calculation.
 			 */
 			homeUri?: vscode.Uri;
 		}
 
 		/**
-		 * Format a file path for use in code.
-		 * - Replaces `\` with `/` because Windows.
-		 * - Surrounds path with double quotes and escapes any internal double quotes.
-		 * - Optionally returns a relative path (e.g. to workspace or user's home directory).
-		 *
-		 * @param filePath The file path to format
-		 * @param options Options for path formatting
-		 * @returns A Thenable that resolves to a quoted, forward-slash path ready for use in code,
-		 *  e.g., "C:/path/file.txt", "relative/path.txt", or "~/relative/path.txt"
-		 */
-		export function formatPathForCode(
-			filePath: string,
-			options?: FormatPathForCodeOptions
-		): Thenable<string>;
+		 * Extract file paths from clipboard.
+		 * Detects files copied from file manager and returns their paths for use in scripts.
+		 * Windows: Replaces `\` with `/`.
+		 * Surrounds paths with double quotes (and escapes any internal double quotes).
+		 * Optionally returns relative paths (e.g. to workspace or user's home directory).
+		 * Try to use core utilities (versus DIY path hacking).
 
-		/**
-		 * Extract file paths from clipboard data.
-		 * Detects files copied from a file manager and returns paths formatted for use in code,
-		 * or null if no files detected.
+		 * @param dataTransfer The clipboard data transfer object
+		 * @param options Options for path conversion
+		 * @returns A Thenable that resolves to an array of quoted, forward-slash,
+		 *  possibly relative file paths, or null if no files detected
 		 */
 		export function extractClipboardFilePaths(
 			dataTransfer: vscode.DataTransfer,
-			options?: FormatPathForCodeOptions
+			options?: ExtractClipboardFilePathsOptions
 		): Thenable<string[] | null>;
 	}
 
@@ -2594,8 +2147,8 @@ declare module 'positron' {
 		 * A language model provider, extends vscode.LanguageModelChatProvider.
 		 */
 		export interface LanguageModelChatProvider<T extends vscode.LanguageModelChatInformation = vscode.LanguageModelChatInformation> {
-			displayName: string;
-			providerId: string;
+			name: string;
+			provider: string;
 			id: string;
 
 			providerName: string;
@@ -2657,34 +2210,11 @@ declare module 'positron' {
 		export function registerChatAgent(agentData: ChatAgentData): Thenable<vscode.Disposable>;
 
 		/**
-		 * Metadata about a language model provider used for configuration.
-		 * Registered during extension activation, independent of sign-in state.
-		 */
-		export interface ProviderMetadata {
-			/**
-			 * Unique identifier for this provider (e.g., 'anthropic-api', 'openai-api', 'copilot').
-			 * Used internally to distinguish between provider implementations.
-			 */
-			id: string;
-			/**
-			 * Display name shown in the UI (e.g., 'Anthropic', 'OpenAI', 'GitHub Copilot').
-			 * Appears in settings, model selection dialogs, and provider lists.
-			 */
-			displayName: string;
-			/**
-			 * Setting name for user configuration in camelCase format (e.g., 'anthropic', 'openAI', 'gitHubCopilot').
-			 * Corresponds to `positron.assistant.provider.<settingName>.enable` in settings.json if visible in Settings UI.
-			 * Positron's Assistant Service automatically reads this from registered providers.
-			 */
-			settingName: string;
-		}
-
-		/**
 		 * Positron Language Model source, used for user configuration of language models.
 		 */
 		export interface LanguageModelSource {
 			type: PositronLanguageModelType;
-			provider: ProviderMetadata;
+			provider: { id: string; displayName: string };
 			supportedOptions: Exclude<{
 				[K in keyof LanguageModelConfig]: undefined extends LanguageModelConfig[K] ? K : never
 			}[keyof LanguageModelConfig], undefined>[];
@@ -2774,21 +2304,12 @@ declare module 'positron' {
 			edits: vscode.TextEdit[];
 		}): void;
 
+		export function getSupportedProviders(): Thenable<string[]>;
+
 		/**
 		 * Get the chat export as a JSON object (IExportableChatData).
 		 */
 		export function getChatExport(): Thenable<object | undefined>;
-
-		/**
-		 * Options for showing the language model configuration modal.
-		 */
-		export interface ShowLanguageModelConfigOptions {
-			/**
-			 * Optional provider ID to pre-select in the dialog.
-			 * If provided and valid, the modal will open with this provider selected.
-			 */
-			preselectedProviderId?: string;
-		}
 
 		/**
 		 * Show a modal dialog for language model configuration.
@@ -2796,17 +2317,7 @@ declare module 'positron' {
 		export function showLanguageModelConfig(
 			sources: LanguageModelSource[],
 			onAction: (config: LanguageModelConfig, action: string) => Thenable<void>,
-			options?: ShowLanguageModelConfigOptions,
 		): Thenable<void>;
-
-		/**
-		 * Registers provider metadata with the core service.
-		 * This allows the core to check provider enable settings without requiring sign-in.
-		 * Should be called during extension activation for all available providers.
-		 *
-		 * @param metadata Provider identification and settings information
-		 */
-		export function registerProviderMetadata(metadata: ProviderMetadata): void;
 
 		/**
 		 * Adds the model to the service's known configurations and notifies its listeners.
@@ -2866,16 +2377,6 @@ declare module 'positron' {
 		export function setCurrentProvider(id: string): Thenable<ChatProvider | undefined>;
 
 		/**
-		 * Gets the list of enabled provider IDs from user configuration.
-		 *
-		 * Reads from individual provider enable settings ('positron.assistant.provider.<name>.enable')
-		 * and the deprecated 'positron.assistant.enabledProviders' array setting for backward compatibility.
-		 *
-		 * @returns A Thenable that resolves to an array of enabled provider IDs
-		 */
-		export function getEnabledProviders(): Thenable<string[]>;
-
-		/**
 		 * Checks if completions are enabled for the given file.
 		 * @param uri The file URI to check if completions are enabled.
 		 * @returns A Thenable that resolves to true if completions should be enabled for the file, false otherwise.
@@ -2921,12 +2422,6 @@ declare module 'positron' {
 			 * to fit without taking too much context.
 			 */
 			allCells?: NotebookCell[];
-
-			/**
-			 * The current state of the runtime session (e.g. 'idle', 'busy', 'restarting').
-			 * Undefined if no runtime session is associated with this notebook.
-			 */
-			runtimeState?: string;
 		}
 
 		/**
@@ -3005,10 +2500,10 @@ declare module 'positron' {
 			lastRunEndTime?: number;
 
 			/**
-			 * For markdown cells only: whether the editor is shown (true) or preview is shown (false).
-			 * This property is undefined for code cells.
+			 * The cell document URI.
+			 * This is the URI that should be used for chat editing diffs.
 			 */
-			editorShown?: boolean;
+			cellUri: string;
 		}
 
 		/**
@@ -3057,13 +2552,6 @@ declare module 'positron' {
 		export function deleteCell(notebookUri: string, cellIndex: number): Thenable<void>;
 
 		/**
-		 * Delete multiple cells from a notebook
-		 * @param notebookUri URI of the notebook
-		 * @param cellIndices Array of cell indices to delete
-		 */
-		export function deleteCells(notebookUri: string, cellIndices: number[]): Thenable<void>;
-
-		/**
 		 * Update the content of a cell in a notebook
 		 * @param notebookUri URI of the notebook
 		 * @param cellIndex Index of the cell to update
@@ -3110,20 +2598,5 @@ declare module 'positron' {
 		 *                 Must be a valid permutation containing each index from 0 to cellCount-1 exactly once.
 		 */
 		export function reorderCells(notebookUri: string, newOrder: number[]): Thenable<void>;
-
-		/**
-		 * Scroll to a cell if it's out of view and auto-follow is enabled.
-		 * Respects the `positron.assistant.notebook.autoFollow` setting.
-		 * @param notebookUri The notebook URI as a string
-		 * @param cellIndex The index of the cell to scroll to
-		 */
-		export function scrollToCellIfNeeded(notebookUri: string, cellIndex: number): Thenable<void>;
-
-		/**
-		 * Clear cell outputs in a notebook.
-		 * @param notebookUri URI of the notebook
-		 * @param cellIndices Optional array of cell indices to clear. If omitted, clears all cells.
-		 */
-		export function clearCellOutputs(notebookUri: string, cellIndices?: number[]): Thenable<void>;
 	}
 }

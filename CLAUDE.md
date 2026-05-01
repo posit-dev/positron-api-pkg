@@ -98,6 +98,6 @@ Tests run against the compiled output in `dist/` to match real-world usage.
 ## Version Compatibility
 
 The package follows the compatibility matrix in README.md:
-- Targets VS Code API 1.100.x (peer dependency: `>=1.100.0 <1.101.0`); verified against 1.100.0
+- Targets VS Code API 1.74.0+ (peer dependency)
 - Built for Positron 2025.07.0+
 - Uses CommonJS output for maximum compatibility

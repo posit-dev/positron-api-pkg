@@ -18,7 +18,6 @@ const { execSync } = require('child_process');
 const PATHS = {
 	// This should sitting in a directory next to the positron repo
 	SOURCE_DIR: path.join(__dirname, '../positron/src/positron-dts'),
-	VSCODE_DTS_DIR: path.join(__dirname, '../positron/src/vscode-dts'),
 	PACKAGE_SRC: path.join(__dirname, 'src'),
 	DIST_DIR: path.join(__dirname, 'dist')
 };
@@ -27,13 +26,8 @@ const PATHS = {
 const FILES = {
 	POSITRON_DTS: 'positron.d.ts',
 	UI_COMM_DTS: 'ui-comm.d.ts',
-	INDEX_DTS: 'index.d.ts',
-	VSCODE_COMPAT_DTS: 'vscode.positron-compat.d.ts'
+	INDEX_DTS: 'index.d.ts'
 };
-
-// Source of truth lives in package.json's devDependencies entry. The peer range
-// may be looser; this constant is the exact version we publish having validated.
-const SUPPORTED_VSCODE_TYPES = require('./package.json').devDependencies['@types/vscode'];
 
 console.log('🔨 Building @posit-dev/positron package...\n');
 
@@ -163,100 +157,6 @@ try {
 }
 
 // =============================================================================
-// STEP 3.5: BUNDLE VSCODE-DTS FILES REFERENCED BY positron.d.ts
-// =============================================================================
-// positron.d.ts contains `/// <reference path="../vscode-dts/..."> ` directives
-// for Positron-specific proposed VS Code API types that are not in @types/vscode.
-// Without bundling these files, consumers hit TS6053 ("file not found") errors
-// (see issue #4). We:
-//   1. Parse the reference directives from positron.d.ts
-//   2. Copy each referenced file from ../positron/src/vscode-dts into dist/vscode-dts
-//   3. Rewrite the reference paths in dist/positron.d.ts to ./vscode-dts/...
-//      so they resolve relative to dist/ (where the published package lives).
-
-console.log('\n📦 Step 3.5: Bundling vscode-dts files referenced by positron.d.ts...');
-
-const distPositronDts = path.join(PATHS.DIST_DIR, FILES.POSITRON_DTS);
-const distVscDtsDir = path.join(PATHS.DIST_DIR, 'vscode-dts');
-const referenceRegex = /\/\/\/\s*<reference\s+path=["']([^"']+)["']\s*\/>/g;
-const languageModelResponsePartAlias =
-	'export type LanguageModelResponsePart2 = LanguageModelResponsePart | LanguageModelDataPart | LanguageModelThinkingPart;';
-const inlinedLanguageModelResponsePartAlias =
-	'export type LanguageModelResponsePart2 = LanguageModelTextPart | LanguageModelToolResultPart | LanguageModelToolCallPart | LanguageModelDataPart | LanguageModelThinkingPart;';
-
-try {
-	const positronDtsContent = fs.readFileSync(distPositronDts, 'utf8');
-	const referencedFiles = [];
-	const referencedFileSet = new Set();
-	let match;
-	while ((match = referenceRegex.exec(positronDtsContent)) !== null) {
-		const refPath = match[1];
-		// Only handle paths pointing at vscode-dts; skip anything else.
-		if (!refPath.includes('vscode-dts/')) continue;
-		const filename = path.basename(refPath);
-		if (!referencedFileSet.has(filename)) {
-			referencedFiles.push(filename);
-			referencedFileSet.add(filename);
-		}
-	}
-
-	if (referencedFiles.length === 0) {
-		throw new Error('Expected vscode-dts reference directives in dist/positron.d.ts but found none');
-	}
-
-	fs.mkdirSync(distVscDtsDir, { recursive: true });
-	fs.copyFileSync(
-		path.join(PATHS.PACKAGE_SRC, FILES.VSCODE_COMPAT_DTS),
-		path.join(distVscDtsDir, FILES.VSCODE_COMPAT_DTS)
-	);
-
-	for (const file of referencedFiles) {
-		const srcFile = path.join(PATHS.VSCODE_DTS_DIR, file);
-		if (!fs.existsSync(srcFile)) {
-			console.error(`   ❌ Referenced vscode-dts file not found: ${srcFile}`);
-			process.exit(1);
-		}
-		fs.copyFileSync(srcFile, path.join(distVscDtsDir, file));
-	}
-
-	const chatProviderDts = path.join(distVscDtsDir, 'vscode.proposed.chatProvider.d.ts');
-	if (fs.existsSync(chatProviderDts)) {
-		const chatProviderContent = fs.readFileSync(chatProviderDts, 'utf8');
-		const rewrittenChatProvider = chatProviderContent.replace(
-			languageModelResponsePartAlias,
-			inlinedLanguageModelResponsePartAlias
-		);
-		if (rewrittenChatProvider === chatProviderContent) {
-			throw new Error(
-				'Expected to rewrite LanguageModelResponsePart2 alias in vscode.proposed.chatProvider.d.ts; upstream literal may have changed'
-			);
-		}
-		fs.writeFileSync(chatProviderDts, rewrittenChatProvider);
-	}
-
-	// Rewrite reference paths so they resolve inside dist/, then prepend a
-	// reference to the local compatibility shim before the first one.
-	const rewrittenReferences = positronDtsContent.replace(
-		referenceRegex,
-		(full, refPath) => {
-			if (!refPath.includes('vscode-dts/')) return full;
-			return `/// <reference path="./vscode-dts/${path.basename(refPath)}" />`;
-		}
-	);
-	const compatReference = `/// <reference path="./vscode-dts/${FILES.VSCODE_COMPAT_DTS}" />`;
-	const firstRefMarker = '/// <reference path="./vscode-dts/';
-	const rewritten = rewrittenReferences.replace(firstRefMarker, `${compatReference}\n${firstRefMarker}`);
-	fs.writeFileSync(distPositronDts, rewritten);
-
-	console.log(`   ✅ Bundled ${referencedFiles.length} vscode-dts file(s) into dist/vscode-dts/`);
-	console.log('   ✅ Added VS Code compatibility declarations');
-	console.log('   ✅ Rewrote reference paths in dist/positron.d.ts to point inside dist/');
-} catch (error) {
-	console.error(`   ❌ Failed to bundle vscode-dts files: ${error.message}`);
-	process.exit(1);
-}
-
-// =============================================================================
 // STEP 4: ADD REFERENCE DIRECTIVES TO MAIN DECLARATION FILE
 // =============================================================================
 // Modify the compiled index.d.ts file to include reference directives that
@@ -282,32 +182,6 @@ try {
 	console.log('   ✅ Reference directives added to index.d.ts');
 } catch (error) {
 	console.error(`   ❌ Failed to add reference directives: ${error.message}`);
-	process.exit(1);
-}
-
-// =============================================================================
-// STEP 4.5: VALIDATE PUBLISHED DECLARATION FILES
-// =============================================================================
-// Validate the declaration files exactly as consumers will load them, without
-// skipLibCheck. This catches missing bundled proposed VS Code API dependencies.
-
-console.log('\n🔍 Step 4.5: Validating published declaration files...');
-
-try {
-	const vscodeTypesPackage = require(path.join(__dirname, 'node_modules/@types/vscode/package.json'));
-	if (vscodeTypesPackage.version !== SUPPORTED_VSCODE_TYPES) {
-		throw new Error(
-			`Expected @types/vscode ${SUPPORTED_VSCODE_TYPES} for peer validation, got ${vscodeTypesPackage.version}`
-		);
-	}
-
-	execSync(
-		'tsc --noEmit --skipLibCheck false --target ES2024 --module NodeNext --moduleResolution NodeNext --types vscode dist/index.d.ts',
-		{ stdio: 'inherit', cwd: __dirname }
-	);
-	console.log(`   ✅ Published declaration files passed strict type checking with @types/vscode ${SUPPORTED_VSCODE_TYPES}`);
-} catch (error) {
-	console.error(`   ❌ Published declaration files failed strict type checking: ${error.message}`);
 	process.exit(1);
 }
 
