@@ -11,7 +11,7 @@ describe('Consumer type-checking (issue #4)', () => {
 
   beforeAll(() => {
     const packDir = fs.mkdtempSync(path.join(os.tmpdir(), 'positron-pack-'));
-    const out = execSync(`npm pack --pack-destination ${packDir} 2>&1`, {
+    const out = execSync(`npm pack --pack-destination "${packDir}" 2>&1`, {
       cwd: pkgRoot,
       encoding: 'utf8',
     });
@@ -26,7 +26,7 @@ describe('Consumer type-checking (issue #4)', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'positron-consumer-'));
 
     // Install the packed tarball exactly as a real consumer would
-    execSync(`npm init -y --silent && npm install --no-save ${tarballPath}`, {
+    execSync(`npm init -y --silent && npm install --no-save "${tarballPath}"`, {
       cwd: dir,
       stdio: 'pipe',
     });
