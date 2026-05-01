@@ -18,7 +18,10 @@ describe('Consumer type-checking (issue #4)', () => {
     tarballPath = path.join('/tmp', filename);
   });
 
-  function createConsumerProject(tsconfig: Record<string, unknown>): string {
+  function createConsumerProject(
+    tsconfig: Record<string, unknown>,
+    packageJsonOverrides?: Record<string, unknown>,
+  ): string {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'positron-consumer-'));
 
     // Install the packed tarball exactly as a real consumer would
@@ -27,12 +30,18 @@ describe('Consumer type-checking (issue #4)', () => {
       stdio: 'pipe',
     });
 
-    // Ensure @types/vscode is available (may already exist from npm install)
+    if (packageJsonOverrides) {
+      const pkgPath = path.join(dir, 'package.json');
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      Object.assign(pkg, packageJsonOverrides);
+      fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+    }
+
+    // Ensure @types/vscode is available (may already exist from npm install).
+    // Use fs.cpSync instead of symlinks for Windows compatibility.
     const vscodeTarget = path.join(dir, 'node_modules', '@types', 'vscode');
     if (!fs.existsSync(vscodeTarget)) {
-      const typesDir = path.join(dir, 'node_modules', '@types');
-      fs.mkdirSync(typesDir, { recursive: true });
-      fs.symlinkSync(vscodeTypesDir, vscodeTarget);
+      fs.cpSync(vscodeTypesDir, vscodeTarget, { recursive: true });
     }
 
     fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2));
@@ -82,16 +91,19 @@ describe('Consumer type-checking (issue #4)', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('should compile with node16 module resolution', () => {
-    const dir = createConsumerProject({
-      compilerOptions: {
-        module: 'Node16',
-        moduleResolution: 'Node16',
-        target: 'ES2020',
-        strict: true,
-        skipLibCheck: false,
+  it('should compile with node16 module resolution (ESM)', () => {
+    const dir = createConsumerProject(
+      {
+        compilerOptions: {
+          module: 'Node16',
+          moduleResolution: 'Node16',
+          target: 'ES2020',
+          strict: true,
+          skipLibCheck: false,
+        },
       },
-    });
+      { type: 'module' },
+    );
     const result = tscCheck(dir);
     expect(result.output, 'tsc errors:\n' + result.output).toBe('');
     expect(result.ok).toBe(true);
