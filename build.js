@@ -157,6 +157,66 @@ try {
 }
 
 // =============================================================================
+// STEP 3.5: STRIP PROPOSED VSCODE-DTS REFERENCES FROM positron.d.ts
+// =============================================================================
+// positron.d.ts contains `/// <reference path="../vscode-dts/...">` directives
+// pointing at Positron-specific proposed VS Code API files. These files live in
+// the Positron monorepo and are not shipped with this package, so consumers hit
+// TS6053 ("file not found") errors (see issue #4).
+//
+// The types introduced by those proposed APIs are only used in a handful of
+// provider-facing signatures (positron.ai.LanguageModelChatProvider). Rather
+// than bundling the external files, we strip the reference directives and
+// replace the proposed types with `any` so the file is self-contained.
+
+console.log('\n📦 Step 3.5: Stripping proposed vscode-dts references from positron.d.ts...');
+
+const distPositronDts = path.join(PATHS.DIST_DIR, FILES.POSITRON_DTS);
+const vscDtsRefRegex = /^\/\/\/\s*<reference\s+path=["'][^"']*vscode-dts\/[^"']*["']\s*\/>\s*\n?/gm;
+
+const PROPOSED_TYPE_REPLACEMENTS = [
+	'LanguageModelChatInformation',
+	'ProvideLanguageModelChatResponseOptions',
+	'LanguageModelResponsePart2',
+	'LanguageModelChatMessage2',
+];
+
+try {
+	let content = fs.readFileSync(distPositronDts, 'utf8');
+
+	const refCount = (content.match(vscDtsRefRegex) || []).length;
+	if (refCount === 0) {
+		console.warn(
+			'   ⚠️  No vscode-dts reference directives found in dist/positron.d.ts; ' +
+			'if upstream removed them, Step 3.5 can be deleted'
+		);
+	}
+	content = content.replace(vscDtsRefRegex, '');
+
+	for (const typeName of PROPOSED_TYPE_REPLACEMENTS) {
+		const typeRegex = new RegExp(`vscode\\.${typeName}`, 'g');
+		content = content.replace(typeRegex, 'any');
+	}
+
+	// Clean up residual `X | any` unions and `extends any` constraints left
+	// by the naive find-and-replace so the output reads intentionally.
+	content = content.replace(/\w[\w.]*(?:\s*\|\s*\w[\w.]*)*\s*\|\s*any/g, 'any');
+	content = content.replace(/<T\s+extends\s+any\s*=\s*any>/g, '<T = any>');
+
+	const leftover = content.match(/vscode-dts\//g);
+	if (leftover) {
+		throw new Error(`Stripped references but ${leftover.length} vscode-dts path(s) remain`);
+	}
+
+	fs.writeFileSync(distPositronDts, content);
+	console.log(`   ✅ Removed ${refCount} vscode-dts reference directive(s)`);
+	console.log(`   ✅ Replaced ${PROPOSED_TYPE_REPLACEMENTS.length} proposed type(s) with \`any\``);
+} catch (error) {
+	console.error(`   ❌ Failed to strip vscode-dts references: ${error.message}`);
+	process.exit(1);
+}
+
+// =============================================================================
 // STEP 4: ADD REFERENCE DIRECTIVES TO MAIN DECLARATION FILE
 // =============================================================================
 // Modify the compiled index.d.ts file to include reference directives that
