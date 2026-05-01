@@ -1,30 +1,39 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
 describe('Consumer type-checking (issue #4)', () => {
-  const distDir = path.resolve(__dirname, '../../dist');
-  const vscodeTypesDir = path.resolve(__dirname, '../../node_modules/@types/vscode');
+  const pkgRoot = path.resolve(__dirname, '../..');
+  const vscodeTypesDir = path.resolve(pkgRoot, 'node_modules/@types/vscode');
+  let tarballPath: string;
+
+  beforeAll(() => {
+    const out = execSync('npm pack --pack-destination /tmp 2>&1', {
+      cwd: pkgRoot,
+      encoding: 'utf8',
+    });
+    const filename = out.trim().split('\n').pop()!;
+    tarballPath = path.join('/tmp', filename);
+  });
 
   function createConsumerProject(tsconfig: Record<string, unknown>): string {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'positron-consumer-'));
 
-    // Simulate an installed package: node_modules/@posit-dev/positron/dist -> our dist
-    const pkgDir = path.join(dir, 'node_modules', '@posit-dev', 'positron');
-    fs.mkdirSync(pkgDir, { recursive: true });
-    fs.symlinkSync(distDir, path.join(pkgDir, 'dist'));
-    fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({
-      name: '@posit-dev/positron',
-      main: 'dist/index.js',
-      types: 'dist/index.d.ts',
-    }));
+    // Install the packed tarball exactly as a real consumer would
+    execSync(`npm init -y --silent && npm install --no-save ${tarballPath}`, {
+      cwd: dir,
+      stdio: 'pipe',
+    });
 
-    // Provide @types/vscode from our own node_modules
-    const typesDir = path.join(dir, 'node_modules', '@types');
-    fs.mkdirSync(typesDir, { recursive: true });
-    fs.symlinkSync(vscodeTypesDir, path.join(typesDir, 'vscode'));
+    // Ensure @types/vscode is available (may already exist from npm install)
+    const vscodeTarget = path.join(dir, 'node_modules', '@types', 'vscode');
+    if (!fs.existsSync(vscodeTarget)) {
+      const typesDir = path.join(dir, 'node_modules', '@types');
+      fs.mkdirSync(typesDir, { recursive: true });
+      fs.symlinkSync(vscodeTypesDir, vscodeTarget);
+    }
 
     fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2));
     fs.writeFileSync(path.join(dir, 'index.ts'), [

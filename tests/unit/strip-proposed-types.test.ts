@@ -2,6 +2,20 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
+function getProposedTypeReplacements(): string[] {
+  const buildSrc = fs.readFileSync(
+    path.resolve(__dirname, '../../build.js'),
+    'utf8'
+  );
+  const match = buildSrc.match(
+    /PROPOSED_TYPE_REPLACEMENTS\s*=\s*\[([\s\S]*?)\]/
+  );
+  if (!match) throw new Error('Could not find PROPOSED_TYPE_REPLACEMENTS in build.js');
+  const names = [...match[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
+  if (names.length === 0) throw new Error('PROPOSED_TYPE_REPLACEMENTS is empty');
+  return names;
+}
+
 describe('Strip proposed vscode-dts types (issue #4)', () => {
   const distPositronDts = fs.readFileSync(
     path.resolve(__dirname, '../../dist/positron.d.ts'),
@@ -16,14 +30,9 @@ describe('Strip proposed vscode-dts types (issue #4)', () => {
   });
 
   it('should not reference proposed-only types', () => {
-    const proposedTypes = [
-      'vscode.LanguageModelChatInformation',
-      'vscode.ProvideLanguageModelChatResponseOptions',
-      'vscode.LanguageModelResponsePart2',
-      'vscode.LanguageModelChatMessage2',
-    ];
+    const proposedTypes = getProposedTypeReplacements();
     for (const typeName of proposedTypes) {
-      expect(distPositronDts).not.toContain(typeName);
+      expect(distPositronDts).not.toContain(`vscode.${typeName}`);
     }
   });
 
