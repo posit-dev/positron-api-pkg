@@ -35,6 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     env:
       # Resolve inputs - repository_dispatch uses payload, workflow_dispatch uses inputs
@@ -44,8 +45,25 @@ jobs:
       FORCE: ${{ inputs.force || false }}
 
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          # positron-bot is managed in rstudio/github-iac as the app
+          # "positron-projects"; its credentials are distributed as the Actions
+          # secrets POSITRON_PROJECTS_APP_ID / POSITRON_PROJECTS_PEM.
+          app-id: ${{ secrets.POSITRON_PROJECTS_APP_ID }}
+          private-key: ${{ secrets.POSITRON_PROJECTS_PEM }}
+
       - name: Checkout this repository
         uses: actions/checkout@v4
+        with:
+          # Use the positron-bot App token so the release PR is opened and
+          # merged by the App identity. A GitHub App token can create PRs even
+          # though the org disables "Allow GitHub Actions to create and approve
+          # pull requests" -- that setting only restricts GITHUB_TOKEN. Merging
+          # the PR then satisfies the branch ruleset, so no bypass is needed.
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Shallow clone Positron repo
         run: |
@@ -121,21 +139,48 @@ jobs:
       - name: Configure git
         if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "positron-bot[bot]"
+          git config user.email "173392469+positron-bot[bot]@users.noreply.github.com"
 
-      - name: Commit changes
-        if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
-        run: |
-          git add package.json package-lock.json README.md
-          git commit -m "Release v${{ steps.bump_version.outputs.version }}"
-          git tag "v${{ steps.bump_version.outputs.version }}"
-
-      - name: Push changes
+      - name: Open release PR, merge, and tag
         if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
+        env:
+          VERSION: ${{ steps.bump_version.outputs.version }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          git push origin HEAD
-          git push origin "v${{ steps.bump_version.outputs.version }}"
+          BRANCH="release/v${VERSION}"
+
+          # main requires changes to go through a PR, so commit to a release
+          # branch and merge via PR instead of pushing to main directly.
+          git checkout -b "$BRANCH"
+          git add package.json package-lock.json README.md
+          git commit -m "Release v${VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Release v${VERSION}" \
+            --body "Automated release of @posit-dev/positron v${VERSION}."
+
+          # Immediate squash merge. Requires main to have no required approvals
+          # (positron-bot can't approve its own PR) and no required status
+          # checks (this merges right away, before any check could finish);
+          # otherwise it fails here by design rather than half-releasing.
+          #
+          # If required checks are added later: this PR is opened by a GitHub
+          # App (not GITHUB_TOKEN), so check workflows DO trigger on it. Switch
+          # to `--auto --squash` and move publish/tag into a second workflow
+          # keyed on the merge to main, since the merge then becomes async.
+          gh pr merge "$BRANCH" --squash --delete-branch
+
+          # Tag the merged commit on main. Tags aren't covered by the branch
+          # ruleset, so this push is allowed.
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
 
       - name: Publish to npm
         if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
