@@ -64,11 +64,6 @@ jobs:
           # pull requests" -- that setting only restricts GITHUB_TOKEN. Merging
           # the PR then satisfies the branch ruleset, so no bypass is needed.
           token: ${{ steps.app-token.outputs.token }}
-          # Fetch all branches so origin/main exists locally. The release step's
-          # `gh pr merge --delete-branch` switches HEAD to the default branch
-          # after merging, and the tag step checks out and resets to
-          # origin/main; both need main present, which a shallow single-branch
-          # checkout (the default) does not provide.
           fetch-depth: 0
 
       - name: Shallow clone Positron repo
