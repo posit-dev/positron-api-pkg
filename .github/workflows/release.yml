@@ -64,6 +64,7 @@ jobs:
           # pull requests" -- that setting only restricts GITHUB_TOKEN. Merging
           # the PR then satisfies the branch ruleset, so no bypass is needed.
           token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
 
       - name: Shallow clone Positron repo
         run: |
@@ -139,8 +140,8 @@ jobs:
       - name: Configure git
         if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         run: |
-          git config user.name "positron-bot[bot]"
-          git config user.email "173392469+positron-bot[bot]@users.noreply.github.com"
+          git config user.name "positron-projects[bot]"
+          git config user.email "210906922+positron-projects[bot]@users.noreply.github.com"
 
       - name: Open release PR, merge, and tag
         if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
