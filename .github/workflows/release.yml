@@ -36,6 +36,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write # required for npm trusted publishing (OIDC)
 
     env:
       # Resolve inputs - repository_dispatch uses payload, workflow_dispatch uses inputs
@@ -101,7 +102,9 @@ jobs:
         if: ${{ steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # npm trusted publishing (OIDC) requires Node >=22.14.0 and npm
+          # >=11.5.1; the npm upgrade happens just before the publish step.
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -183,11 +186,13 @@ jobs:
           git tag "v${VERSION}"
           git push origin "v${VERSION}"
 
+      - name: Upgrade npm for trusted publishing
+        if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
+        run: npm install -g npm@latest
+
       - name: Publish to npm
         if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
 
       - name: Create GitHub Release
         if: ${{ (steps.check_version.outputs.already_released == 'false' || env.FORCE == 'true') && env.DRY_RUN == 'false' }}
