@@ -1,13 +1,8 @@
 # @posit-dev/positron
 
-> ⚠️ **EXPERIMENTAL - USE WITH EXTREME CAUTION**
->
-> This package is currently experimental and should be used with extreme caution. The API definitions may change without notice, break compatibility, or be removed entirely. This package is not yet recommended for production use. Use at your own risk.
-
----
-
 TypeScript definitions and runtime utilities for the [Positron](https://github.com/posit-dev/positron) API. This package is for extensions that want to utilize the Positron API to add custom functionality for Positron.
 
+The package acquires the API at runtime. Outside Positron, this call returns `undefined`. As a result, an extension built on this package does not fail to activate in VS Code. It only loses the Positron-specific features.
 
 ## Installation
 
@@ -148,6 +143,17 @@ This package includes TypeScript definitions for:
 - **Environment**: Environment variable management
 - **AI Features**: Language model and chat agent interfaces
 - **Plotting**: Plot rendering settings and formats
+
+## Stability
+
+This package is pre-1.0. Different parts have different levels of stability. The table below shows what to expect from each part:
+
+| Surface | Stability | What to expect |
+|---------|-----------|----------------|
+| `tryAcquirePositronApi()`, `inPositron()`, `previewUrl()`, `PositronApi` | **Stable** | These signatures do not change unless there is a major version increase. You can depend on them. |
+| All other Positron API namespaces (`runtime`, `window`, `languages`, …) | **Tracks Positron releases** | These match the Positron API version listed in the [Version Compatibility](#version-compatibility) table. Individual APIs can change between Positron releases. Check that table before you upgrade. |
+| `ai` namespace | **Unstable** | Upstream marks this as experimental. It can change or be removed in any release. It depends on VS Code proposed APIs. The build process replaces these with `any` ([#4](https://github.com/posit-dev/positron-api-pkg/issues/4)). As a result, provider-facing signatures are not fully type-checked. If you use this namespace, pin an exact package version. |
+
 
 ## Version Compatibility
 
