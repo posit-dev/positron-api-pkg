@@ -150,6 +150,7 @@ This package is pre-1.0. Different parts have different levels of stability. The
 
 | Surface | Stability | What to expect |
 |---------|-----------|----------------|
+| 0.2.7 | 2026.08.1+ |
 | `tryAcquirePositronApi()`, `inPositron()`, `previewUrl()`, `PositronApi` | **Stable** | These signatures do not change unless there is a major version increase. You can depend on them. |
 | All other Positron API namespaces (`runtime`, `window`, `languages`, …) | **Tracks Positron releases** | These match the Positron API version listed in the [Version Compatibility](#version-compatibility) table. Individual APIs can change between Positron releases. Check that table before you upgrade. |
 | `ai` namespace | **Unstable** | Upstream marks this as experimental. It can change or be removed in any release. It depends on VS Code proposed APIs. The build process replaces these with `any` ([#4](https://github.com/posit-dev/positron-api-pkg/issues/4)). As a result, provider-facing signatures are not fully type-checked. If you use this namespace, pin an exact package version. |
@@ -161,6 +162,7 @@ This table shows which version of Positron each package version was built agains
 
 | @posit-dev/positron | Positron Version | VS Code API | Notes |
 |---------------------|------------------|-------------|-------|
+| 0.2.7 | 2026.08.1+ |
 | 0.2.6 | 2026.08.0+ |
 | 0.2.5 | 2026.06.1+ |
 | 0.2.4 | 2026.05.0+ | 1.74.0+ | Strips proposed VS Code API references; fixes #4 |
