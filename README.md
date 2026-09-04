@@ -150,6 +150,7 @@ This package is pre-1.0. Different parts have different levels of stability. The
 
 | Surface | Stability | What to expect |
 |---------|-----------|----------------|
+| 0.2.10 | 2026.09.1+ |
 | 0.2.9 | 2026.09.0+ |
 | 0.2.8 | 2026.08.2+ |
 | 0.2.7 | 2026.08.1+ |
@@ -164,6 +165,7 @@ This table shows which version of Positron each package version was built agains
 
 | @posit-dev/positron | Positron Version | VS Code API | Notes |
 |---------------------|------------------|-------------|-------|
+| 0.2.10 | 2026.09.1+ |
 | 0.2.9 | 2026.09.0+ |
 | 0.2.8 | 2026.08.2+ |
 | 0.2.7 | 2026.08.1+ |
